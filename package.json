@@ -1,0 +1,9 @@
+{
+  "name": "acme",
+  "private": true,
+  "main": "index.js",
+  "license": "ISC",
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}
