@@ -1,17 +1,42 @@
 #!/usr/bin/env node
-import * as cdk from "aws-cdk-lib";
-import { InfraStack } from "../lib/infra-stack";
+import { App } from "aws-cdk-lib";
+import { HostingStack } from "../lib/hosting-stack";
+import { DeploymentStack } from "../lib/deployment-stack";
 
-const app = new cdk.App();
-new InfraStack(app, "InfraStack", {
-  /* If you don't specify 'env', this stack will be environment-agnostic.
-   * Account/Region-dependent features and context lookups will not work,
-   * but a single synthesized template can be deployed anywhere. */
-  /* Uncomment the next line to specialize this stack for the AWS Account
-   * and Region that are implied by the current CLI configuration. */
-  // env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION },
-  /* Uncomment the next line if you know exactly what Account and Region you
-   * want to deploy the stack to. */
-  // env: { account: '123456789012', region: 'us-east-1' },
-  /* For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html */
+const environments = ["dev", "prod"] as const;
+export type EnvironmentName = (typeof environments)[number];
+
+const app = new App();
+
+// When GitHub Actions runs the workflow, github.ref_name will be either "dev" or "prod"
+// "dev" or "prod"
+const environment = app.node.tryGetContext("environment");
+
+if (!environment) {
+  throw new Error(
+    "Context variable 'environment' is required. Pass it using -c environment=<value>"
+  );
+}
+
+if (environment !== "dev" && environment !== "prod") {
+  throw new Error(
+    `Invalid environment name '${environment}'. Allowed values are: 'dev' or 'prod'.`
+  );
+}
+
+// At this point, we know that environment is either "dev" or "prod"
+
+const hostingStack = new HostingStack(app, `${environment}-HostingStack`, {
+  environment,
 });
+
+// deploymentStack depends on hostingStack
+const deploymentStack = new DeploymentStack(
+  app,
+  `${environment}-DeploymentStack`,
+  {
+    environment,
+    bucketName: hostingStack.bucketName,
+    cloudFrontDistributionId: hostingStack.cloudFrontDistributionId,
+  }
+);
